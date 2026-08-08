@@ -16,6 +16,12 @@ const matchRoutes = require("./routes/matchRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 
+console.log("authRoutes:", typeof authRoutes);
+console.log("profileRoutes:", typeof profileRoutes);
+console.log("friendRoutes:", typeof friendRoutes);
+console.log("matchRoutes:", typeof matchRoutes);
+console.log("messageRoutes:", typeof messageRoutes);
+console.log("dashboardRoutes:", typeof dashboardRoutes);
 // ================= SOCKET =================
 
 const { socketHandler } = require("./socket/socket");
