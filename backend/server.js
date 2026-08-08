@@ -6,51 +6,114 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 const connectDB = require("./config/db");
+
+// ================= ROUTES =================
+
 const friendRoutes = require("./routes/friendRoutes");
 const authRoutes = require("./routes/authRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const matchRoutes = require("./routes/matchRoutes");
 const messageRoutes = require("./routes/messageRoutes");
-// Import socket handler
+const dashboardRoutes = require("./routes/dashboardRoutes");
+
+// ================= SOCKET =================
+
 const { socketHandler } = require("./socket/socket");
 
-// Connect MongoDB
+// ================= DATABASE =================
+
 connectDB();
 
+// ================= APP =================
+
 const app = express();
+
 const server = http.createServer(app);
 
-// Middlewares
-app.use(cors());
+// ================= MIDDLEWARE =================
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://campus-connect-frontend-nine.vercel.app",
+    ],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-// Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/profile", profileRoutes);
-app.use("/api/friends", friendRoutes);
-app.use("/api/match", matchRoutes);
-app.use("/api/messages", messageRoutes);
-// Test Route
+// ================= ROUTES =================
+
+app.use(
+  "/api/auth",
+  authRoutes
+);
+
+app.use(
+  "/api/profile",
+  profileRoutes
+);
+
+app.use(
+  "/api/friends",
+  friendRoutes
+);
+
+app.use(
+  "/api/match",
+  matchRoutes
+);
+
+app.use(
+  "/api/messages",
+  messageRoutes
+);
+
+// ⭐ NEW DASHBOARD ROUTE
+app.use(
+  "/api/dashboard",
+  dashboardRoutes
+);
+
+// ================= TEST ROUTE =================
+
 app.get("/", (req, res) => {
-  res.send("🚀 CampusConnect Backend Running");
+  res.send(
+    "🚀 CampusConnect Backend Running"
+  );
 });
 
-// Socket.IO
+// ================= SOCKET.IO =================
+
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"],
+    origin: [
+      "http://localhost:3000",
+      "https://campus-connect-frontend-nine.vercel.app",
+    ],
+    methods: [
+      "GET",
+      "POST",
+    ],
+    credentials: true,
   },
 });
 
-// Initialize Socket
+// Initialize Socket.IO
 socketHandler(io);
 
-// Make io available everywhere
+// Make io available throughout the application
 app.set("io", io);
 
-const PORT = process.env.PORT || 5000;
+// ================= SERVER =================
+
+const PORT =
+  process.env.PORT || 5000;
 
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(
+    `🚀 Server running on port ${PORT}`
+  );
 });

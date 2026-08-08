@@ -1,8 +1,11 @@
 const User = require("../models/User");
 
-// Update User Profile
+// ================= UPDATE PROFILE =================
 const updateProfile = async (req, res) => {
   try {
+    console.log("========== UPDATE PROFILE ==========");
+    console.log(req.body);
+
     const {
       username,
       bio,
@@ -22,28 +25,38 @@ const updateProfile = async (req, res) => {
       });
     }
 
-    user.bio = bio;
-    user.age = age;
-    user.gender = gender;
-    user.interestedIn = interestedIn;
-    user.purpose = purpose; // Added
-    user.location = location;
-    user.interests = interests;
+    if (bio !== undefined) user.bio = bio;
+    if (age !== undefined) user.age = age;
+    if (gender !== undefined) user.gender = gender;
+    if (interestedIn !== undefined) user.interestedIn = interestedIn;
+    if (purpose !== undefined) user.purpose = purpose;
+    if (location !== undefined) user.location = location;
+    if (interests !== undefined) user.interests = interests;
 
     await user.save();
 
-    res.status(200).json({
+    // Read again from MongoDB to verify what was actually saved
+    const updatedUser = await User.findOne({ username }).select("-password");
+
+    console.log("========== AFTER SAVE ==========");
+    console.log(updatedUser);
+    console.log("================================");
+
+    return res.status(200).json({
       message: "Profile Updated Successfully",
-      user,
+      user: updatedUser,
     });
   } catch (error) {
-    res.status(500).json({
+    console.log("PROFILE UPDATE ERROR:");
+    console.log(error);
+
+    return res.status(500).json({
       message: error.message,
     });
   }
 };
 
-// Upload Profile Picture
+// ================= UPLOAD PROFILE PICTURE =================
 const uploadProfilePicture = async (req, res) => {
   try {
     const { username } = req.body;
@@ -62,23 +75,26 @@ const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    user.profilePicture = req.file.path;
+    user.profileImage = req.file.path;
 
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Profile Picture Uploaded Successfully",
       image: req.file.path,
       user,
     });
   } catch (error) {
-    res.status(500).json({
+    console.log("UPLOAD IMAGE ERROR:");
+    console.log(error);
+
+    return res.status(500).json({
       message: error.message,
     });
   }
 };
 
-// Get User Profile
+// ================= GET PROFILE =================
 const getProfile = async (req, res) => {
   try {
     const { username } = req.params;
@@ -91,9 +107,12 @@ const getProfile = async (req, res) => {
       });
     }
 
-    res.status(200).json(user);
+    return res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({
+    console.log("GET PROFILE ERROR:");
+    console.log(error);
+
+    return res.status(500).json({
       message: error.message,
     });
   }

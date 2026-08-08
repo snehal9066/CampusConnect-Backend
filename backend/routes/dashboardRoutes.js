@@ -1,20 +1,21 @@
 const express = require("express");
+
 const router = express.Router();
 
 const {
-  getMessages,
-} = require("../controllers/messageController");
+  getDashboard,
+} = require("../controllers/dashboardController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 
 // ======================================================
-// GET MESSAGES FOR A MATCH
+// GET DASHBOARD DATA
 // ======================================================
 
 router.get(
-  "/:matchId",
+  "/",
   authMiddleware,
-  getMessages
+  getDashboard
 );
 
 module.exports = router;

@@ -3,15 +3,31 @@ const router = express.Router();
 
 const {
   joinQueue,
+  cancelQueue,
   revealIdentity,
 } = require("../controllers/matchController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 
-// Join queue
-router.post("/join", authMiddleware, joinQueue);
+// Join match queue
+router.post(
+  "/join",
+  authMiddleware,
+  joinQueue
+);
+
+// Cancel match search
+router.delete(
+  "/cancel",
+  authMiddleware,
+  cancelQueue
+);
 
 // Reveal identity
-router.post("/reveal", authMiddleware, revealIdentity);
+router.post(
+  "/reveal",
+  authMiddleware,
+  revealIdentity
+);
 
 module.exports = router;

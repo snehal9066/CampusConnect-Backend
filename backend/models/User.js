@@ -42,19 +42,32 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    age: {
+      type: Number,
+      default: null,
+    },
+
+    location: {
+      type: String,
+      default: "",
+    },
+
     gender: {
       type: String,
-      enum: ["Male", "Female"],
+      enum: ["Male", "Female", "Other"],
+      default: "Male",
     },
 
     interestedIn: {
       type: String,
-      enum: ["Male", "Female"],
+      enum: ["Male", "Female", "Everyone"],
+      default: "Female",
     },
 
     purpose: {
       type: String,
       enum: ["Friendship", "Dating", "Study Buddy", "Coffee Chat"],
+      default: "Friendship",
     },
 
     interests: [
