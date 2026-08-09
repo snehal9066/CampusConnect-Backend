@@ -1163,6 +1163,45 @@ const getConnectionHistory = async (
 };
 
 // ======================================================
+// SWIPE ACTION
+// ======================================================
+
+const swipeAction = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { matchId, direction } = req.body;
+    if (!matchId || !direction) {
+      return res.status(400).json({ message: 'matchId and direction required' });
+    }
+    const match = await Match.findById(matchId);
+    if (!match) {
+      return res.status(404).json({ message: 'Match not found' });
+    }
+    // Verify user belongs to this match
+    if (match.user1.toString() !== userId && match.user2.toString() !== userId) {
+      return res.status(403).json({ message: 'Not part of this match' });
+    }
+    // Update reveal flags based on swipe direction (right = like)
+    if (direction === 'right') {
+      if (match.user1.toString() === userId) {
+        match.revealUser1 = true;
+      } else {
+        match.revealUser2 = true;
+      }
+    }
+    // If both users liked, set revealed true
+    if (match.revealUser1 && match.revealUser2) {
+      match.revealed = true;
+    }
+    await match.save();
+    return res.status(200).json({ message: 'Swipe recorded', match });
+  } catch (err) {
+    console.error('Swipe error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ======================================================
 // EXPORT
 // ======================================================
 
@@ -1173,6 +1212,7 @@ module.exports = {
   getCurrentMatch,
   revealIdentity,
   getConnectionHistory,
+  swipeAction,
   areUsersCompatible,
   getStudyBuddyScore,
 };

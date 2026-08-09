@@ -1,14 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const {
-  joinQueue,
-  cancelQueue,
-  revealIdentity,
-  getMatchStatus,
-  getCurrentMatch,
-  getConnectionHistory,
-} = require("../controllers/matchController");
+const { joinQueue, cancelQueue, revealIdentity, getMatchStatus, getCurrentMatch, getConnectionHistory, swipeAction } = require("../controllers/matchController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -53,5 +46,6 @@ router.get(
   authMiddleware,
   getConnectionHistory
 );
+router.post("/swipe", authMiddleware, swipeAction);
 
 module.exports = router;

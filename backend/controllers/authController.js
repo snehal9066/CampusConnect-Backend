@@ -81,7 +81,20 @@ const loginUser = async (req, res) => {
   }
 };
 
-module.exports = {
-  registerUser,
-  loginUser,
+// Verify Email
+const verifyUser = async (req, res) => {
+  try {
+    const { token } = req.body;
+    // Simple token verification (replace with proper JWT verification in production)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.verified = true;
+    await user.save();
+    res.status(200).json({ message: 'Email verified', user });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
 };
+
+module.exports = { registerUser, loginUser, verifyUser };

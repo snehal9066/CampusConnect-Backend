@@ -64,7 +64,8 @@ const userSchema = new mongoose.Schema(
       default: "Female",
     },
 
-    purpose: {
+    verified: { type: Boolean, default: false },
+      purpose: {
       type: String,
       enum: [
         "Friendship",
