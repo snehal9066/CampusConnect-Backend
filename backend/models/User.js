@@ -66,7 +66,12 @@ const userSchema = new mongoose.Schema(
 
     purpose: {
       type: String,
-      enum: ["Friendship", "Dating", "Study Buddy", "Coffee Chat"],
+      enum: [
+        "Friendship",
+        "Dating",
+        "Study Buddy",
+        "Coffee Chat",
+      ],
       default: "Friendship",
     },
 
@@ -75,6 +80,40 @@ const userSchema = new mongoose.Schema(
         type: String,
       },
     ],
+
+    // ==========================================
+    // STUDY BUDDY PREFERENCES
+    // ==========================================
+
+    studySubjects: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+
+    studyAvailability: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+
+    studyMode: {
+      type: String,
+      enum: ["Online", "In Person", "Both"],
+      default: "Both",
+    },
+
+    studyStyle: {
+      type: String,
+      enum: ["Quiet", "Discussion", "Both"],
+      default: "Both",
+    },
+
+    // ==========================================
+    // FRIENDS
+    // ==========================================
 
     friends: [
       {

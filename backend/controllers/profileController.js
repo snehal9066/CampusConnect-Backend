@@ -15,6 +15,12 @@ const updateProfile = async (req, res) => {
       purpose,
       location,
       interests,
+
+      // Study Buddy fields
+      studySubjects,
+      studyAvailability,
+      studyMode,
+      studyStyle,
     } = req.body;
 
     const user = await User.findOne({ username });
@@ -25,29 +31,101 @@ const updateProfile = async (req, res) => {
       });
     }
 
-    if (bio !== undefined) user.bio = bio;
-    if (age !== undefined) user.age = age;
-    if (gender !== undefined) user.gender = gender;
-    if (interestedIn !== undefined) user.interestedIn = interestedIn;
-    if (purpose !== undefined) user.purpose = purpose;
-    if (location !== undefined) user.location = location;
-    if (interests !== undefined) user.interests = interests;
+    // ==========================================
+    // BASIC PROFILE FIELDS
+    // ==========================================
+
+    if (bio !== undefined) {
+      user.bio = bio;
+    }
+
+    if (age !== undefined) {
+      user.age = age;
+    }
+
+    if (gender !== undefined) {
+      user.gender = gender;
+    }
+
+    if (interestedIn !== undefined) {
+      user.interestedIn = interestedIn;
+    }
+
+    if (purpose !== undefined) {
+      user.purpose = purpose;
+    }
+
+    if (location !== undefined) {
+      user.location = location;
+    }
+
+    if (interests !== undefined) {
+      user.interests = Array.isArray(interests)
+        ? interests
+        : [];
+    }
+
+    // ==========================================
+    // STUDY BUDDY FIELDS
+    // ==========================================
+
+    if (studySubjects !== undefined) {
+      user.studySubjects = Array.isArray(
+        studySubjects
+      )
+        ? studySubjects
+        : [];
+    }
+
+    if (studyAvailability !== undefined) {
+      user.studyAvailability = Array.isArray(
+        studyAvailability
+      )
+        ? studyAvailability
+        : [];
+    }
+
+    if (studyMode !== undefined) {
+      user.studyMode = studyMode;
+    }
+
+    if (studyStyle !== undefined) {
+      user.studyStyle = studyStyle;
+    }
+
+    // ==========================================
+    // SAVE
+    // ==========================================
 
     await user.save();
 
-    // Read again from MongoDB to verify what was actually saved
-    const updatedUser = await User.findOne({ username }).select("-password");
+    // Read again from MongoDB to verify
+    const updatedUser =
+      await User.findOne({ username }).select(
+        "-password"
+      );
 
-    console.log("========== AFTER SAVE ==========");
+    console.log(
+      "========== AFTER SAVE =========="
+    );
+
     console.log(updatedUser);
-    console.log("================================");
+
+    console.log(
+      "================================"
+    );
 
     return res.status(200).json({
-      message: "Profile Updated Successfully",
+      message:
+        "Profile Updated Successfully",
+
       user: updatedUser,
     });
   } catch (error) {
-    console.log("PROFILE UPDATE ERROR:");
+    console.log(
+      "PROFILE UPDATE ERROR:"
+    );
+
     console.log(error);
 
     return res.status(500).json({
@@ -57,11 +135,15 @@ const updateProfile = async (req, res) => {
 };
 
 // ================= UPLOAD PROFILE PICTURE =================
-const uploadProfilePicture = async (req, res) => {
+const uploadProfilePicture = async (
+  req,
+  res
+) => {
   try {
     const { username } = req.body;
 
-    const user = await User.findOne({ username });
+    const user =
+      await User.findOne({ username });
 
     if (!user) {
       return res.status(404).json({
@@ -75,17 +157,24 @@ const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    user.profileImage = req.file.path;
+    user.profileImage =
+      req.file.path;
 
     await user.save();
 
     return res.status(200).json({
-      message: "Profile Picture Uploaded Successfully",
+      message:
+        "Profile Picture Uploaded Successfully",
+
       image: req.file.path,
+
       user,
     });
   } catch (error) {
-    console.log("UPLOAD IMAGE ERROR:");
+    console.log(
+      "UPLOAD IMAGE ERROR:"
+    );
+
     console.log(error);
 
     return res.status(500).json({
@@ -95,11 +184,18 @@ const uploadProfilePicture = async (req, res) => {
 };
 
 // ================= GET PROFILE =================
-const getProfile = async (req, res) => {
+const getProfile = async (
+  req,
+  res
+) => {
   try {
-    const { username } = req.params;
+    const { username } =
+      req.params;
 
-    const user = await User.findOne({ username }).select("-password");
+    const user =
+      await User.findOne({
+        username,
+      }).select("-password");
 
     if (!user) {
       return res.status(404).json({
@@ -109,7 +205,10 @@ const getProfile = async (req, res) => {
 
     return res.status(200).json(user);
   } catch (error) {
-    console.log("GET PROFILE ERROR:");
+    console.log(
+      "GET PROFILE ERROR:"
+    );
+
     console.log(error);
 
     return res.status(500).json({

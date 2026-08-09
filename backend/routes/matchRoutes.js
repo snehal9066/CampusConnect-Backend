@@ -5,6 +5,9 @@ const {
   joinQueue,
   cancelQueue,
   revealIdentity,
+  getMatchStatus,
+  getCurrentMatch,
+  getConnectionHistory,
 } = require("../controllers/matchController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -28,6 +31,27 @@ router.post(
   "/reveal",
   authMiddleware,
   revealIdentity
+);
+
+// Match status
+router.get(
+  "/status",
+  authMiddleware,
+  getMatchStatus
+);
+
+// Current match
+router.get(
+  "/current",
+  authMiddleware,
+  getCurrentMatch
+);
+
+// Connection history
+router.get(
+  "/history",
+  authMiddleware,
+  getConnectionHistory
 );
 
 module.exports = router;

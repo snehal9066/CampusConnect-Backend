@@ -5,6 +5,124 @@ const Friend = require("../models/Friend");
 const { connectedUsers } = require("../socket/socket");
 
 // ======================================================
+// STUDY BUDDY COMPATIBILITY SCORE
+// ======================================================
+
+const getStudyBuddyScore = (userA, userB) => {
+  let score = 0;
+
+  // Same department - 20 points
+  if (
+    userA.department &&
+    userB.department &&
+    userA.department.toLowerCase() ===
+      userB.department.toLowerCase()
+  ) {
+    score += 20;
+  }
+
+  // Same year - 10 points
+  if (
+    userA.year &&
+    userB.year &&
+    userA.year === userB.year
+  ) {
+    score += 10;
+  }
+
+  // Common subjects - 30 points
+  const subjectsA = Array.isArray(userA.studySubjects)
+    ? userA.studySubjects.map((s) =>
+        String(s).toLowerCase().trim()
+      )
+    : [];
+
+  const subjectsB = Array.isArray(userB.studySubjects)
+    ? userB.studySubjects.map((s) =>
+        String(s).toLowerCase().trim()
+      )
+    : [];
+
+  const commonSubjects = subjectsA.filter((subject) =>
+    subjectsB.includes(subject)
+  );
+
+  if (commonSubjects.length > 0) {
+    const subjectScore = Math.min(
+      commonSubjects.length * 10,
+      30
+    );
+
+    score += subjectScore;
+  }
+
+  // Common interests - 15 points
+  const interestsA = Array.isArray(userA.interests)
+    ? userA.interests.map((i) =>
+        String(i).toLowerCase().trim()
+      )
+    : [];
+
+  const interestsB = Array.isArray(userB.interests)
+    ? userB.interests.map((i) =>
+        String(i).toLowerCase().trim()
+      )
+    : [];
+
+  const commonInterests = interestsA.filter((interest) =>
+    interestsB.includes(interest)
+  );
+
+  if (commonInterests.length > 0) {
+    const interestScore = Math.min(
+      commonInterests.length * 5,
+      15
+    );
+
+    score += interestScore;
+  }
+
+  // Same availability - 15 points
+  const availabilityA = Array.isArray(
+    userA.studyAvailability
+  )
+    ? userA.studyAvailability.map((a) =>
+        String(a).toLowerCase().trim()
+      )
+    : [];
+
+  const availabilityB = Array.isArray(
+    userB.studyAvailability
+  )
+    ? userB.studyAvailability.map((a) =>
+        String(a).toLowerCase().trim()
+      )
+    : [];
+
+  const commonAvailability = availabilityA.filter(
+    (time) => availabilityB.includes(time)
+  );
+
+  if (commonAvailability.length > 0) {
+    score += 15;
+  }
+
+  // Same study mode - 10 points
+  const modeA = userA.studyMode || "Both";
+  const modeB = userB.studyMode || "Both";
+
+  if (
+    modeA === modeB ||
+    modeA === "Both" ||
+    modeB === "Both"
+  ) {
+    score += 10;
+  }
+
+  return Math.min(score, 100);
+};
+
+// ======================================================
 // CHECK WHETHER TWO USERS ARE COMPATIBLE
 // ======================================================
 
@@ -68,6 +186,19 @@ const areUsersCompatible = (userA, userB) => {
 };
 
 // ======================================================
+// GET MATCH SCORE
+// ======================================================
+
+const getCompatibilityScore = (userA, userB) => {
+  if (userA.purpose === "Study Buddy") {
+    return getStudyBuddyScore(userA, userB);
+  }
+
+  // Existing connection types don't use scoring
+  return 100;
+};
+
+// ======================================================
 // JOIN BLIND MATCH QUEUE
 // ======================================================
 
@@ -83,8 +214,7 @@ const joinQueue = async (req, res) => {
     // CURRENT USER
     // ==================================================
 
-    const currentUser =
-      await User.findById(userId);
+    const currentUser = await User.findById(userId);
 
     if (!currentUser) {
       return res.status(404).json({
@@ -92,35 +222,42 @@ const joinQueue = async (req, res) => {
       });
     }
 
-    console.log(
-      "========== CURRENT USER =========="
-    );
+    // Sync purpose from request body if provided
+    const requestedPurpose = req.body && req.body.purpose;
+    const validPurposes = ["Friendship", "Dating", "Study Buddy", "Coffee Chat"];
+    if (requestedPurpose && validPurposes.includes(requestedPurpose)) {
+      currentUser.purpose = requestedPurpose;
+      await currentUser.save();
+    }
+
+    console.log("========== CURRENT USER ==========");
 
     console.log({
       username: currentUser.username,
       gender: currentUser.gender,
-      interestedIn:
-        currentUser.interestedIn,
+      interestedIn: currentUser.interestedIn,
       purpose: currentUser.purpose,
+      department: currentUser.department,
+      year: currentUser.year,
+      studySubjects: currentUser.studySubjects,
+      studyAvailability: currentUser.studyAvailability,
+      studyMode: currentUser.studyMode,
+      studyStyle: currentUser.studyStyle,
     });
 
     // ==================================================
     // CHECK IF ALREADY WAITING
     // ==================================================
 
-    const alreadyWaiting =
-      await Queue.findOne({
-        user: userId,
-      });
+    const alreadyWaiting = await Queue.findOne({
+      user: userId,
+    });
 
     if (alreadyWaiting) {
-      console.log(
-        "⚠️ User already in queue"
-      );
+      console.log("⚠️ User already in queue");
 
       return res.status(400).json({
-        message:
-          "You are already waiting for a match.",
+        message: "You are already waiting for a match.",
       });
     }
 
@@ -128,25 +265,21 @@ const joinQueue = async (req, res) => {
     // GET USERS CURRENTLY IN QUEUE
     // ==================================================
 
-    const waitingUsers =
-      await Queue.find({
-        user: {
-          $ne: userId,
-        },
-      }).sort({
-        createdAt: 1,
-      });
+    const waitingUsers = await Queue.find({
+      user: {
+        $ne: userId,
+      },
+    }).sort({
+      createdAt: 1,
+    });
 
-    console.log(
-      "========== WAITING USERS =========="
-    );
+    console.log("========== WAITING USERS ==========");
 
     console.log(
       waitingUsers.map((q) => ({
         user: q.user.toString(),
         gender: q.gender,
-        interestedIn:
-          q.interestedIn,
+        interestedIn: q.interestedIn,
         purpose: q.purpose,
       }))
     );
@@ -157,12 +290,12 @@ const joinQueue = async (req, res) => {
 
     let matchedQueueUser = null;
     let matchedPartner = null;
+    let bestScore = -1;
 
     for (const queueUser of waitingUsers) {
-      const partnerUser =
-        await User.findById(
-          queueUser.user
-        );
+      const partnerUser = await User.findById(
+        queueUser.user
+      );
 
       // Invalid/deleted user
       if (!partnerUser) {
@@ -177,20 +310,19 @@ const joinQueue = async (req, res) => {
       // CHECK EXISTING MATCH
       // ==================================================
 
-      const existingMatch =
-        await Match.findOne({
-          $or: [
-            {
-              user1: userId,
-              user2: partnerUser._id,
-            },
-            {
-              user1: partnerUser._id,
-              user2: userId,
-            },
-          ],
-          status: "matched",
-        });
+      const existingMatch = await Match.findOne({
+        $or: [
+          {
+            user1: userId,
+            user2: partnerUser._id,
+          },
+          {
+            user1: partnerUser._id,
+            user2: userId,
+          },
+        ],
+        status: "matched",
+      });
 
       if (existingMatch) {
         console.log(
@@ -202,7 +334,7 @@ const joinQueue = async (req, res) => {
       }
 
       console.log(
-        "🔍 Checking:",
+        "🔎 Checking:",
         currentUser.username,
         "<->",
         partnerUser.username
@@ -210,21 +342,15 @@ const joinQueue = async (req, res) => {
 
       console.log({
         currentUser: {
-          gender:
-            currentUser.gender,
-          interestedIn:
-            currentUser.interestedIn,
-          purpose:
-            currentUser.purpose,
+          gender: currentUser.gender,
+          interestedIn: currentUser.interestedIn,
+          purpose: currentUser.purpose,
         },
 
         partner: {
-          gender:
-            partnerUser.gender,
-          interestedIn:
-            partnerUser.interestedIn,
-          purpose:
-            partnerUser.purpose,
+          gender: partnerUser.gender,
+          interestedIn: partnerUser.interestedIn,
+          purpose: partnerUser.purpose,
         },
       });
 
@@ -232,15 +358,44 @@ const joinQueue = async (req, res) => {
       // COMPATIBILITY CHECK
       // ==================================================
 
-      if (
-        areUsersCompatible(
-          currentUser,
-          partnerUser
-        )
-      ) {
+      const compatible = areUsersCompatible(
+        currentUser,
+        partnerUser
+      );
+
+      if (!compatible) {
+        continue;
+      }
+
+      // ==================================================
+      // CALCULATE SCORE
+      // ==================================================
+
+      const score = getCompatibilityScore(
+        currentUser,
+        partnerUser
+      );
+
+      console.log(
+        `🎯 Compatibility with ${partnerUser.username}: ${score}%`
+      );
+
+      // ==================================================
+      // STUDY BUDDY
+      // SELECT BEST MATCH
+      // ==================================================
+
+      if (currentUser.purpose === "Study Buddy") {
+        if (score > bestScore) {
+          bestScore = score;
+          matchedQueueUser = queueUser;
+          matchedPartner = partnerUser;
+        }
+      } else {
+        // Existing behavior:
+        // first compatible person wins
         matchedQueueUser = queueUser;
         matchedPartner = partnerUser;
-
         break;
       }
     }
@@ -253,9 +408,7 @@ const joinQueue = async (req, res) => {
       matchedQueueUser &&
       matchedPartner
     ) {
-      console.log(
-        "🎉 MATCH FOUND!"
-      );
+      console.log("🎉 MATCH FOUND!");
 
       console.log(
         currentUser.username,
@@ -263,28 +416,31 @@ const joinQueue = async (req, res) => {
         matchedPartner.username
       );
 
+      if (currentUser.purpose === "Study Buddy") {
+        console.log(
+          `📚 Study Buddy Compatibility: ${bestScore}%`
+        );
+      }
+
       // =================================================
       // CREATE MATCH
       // =================================================
 
-      const match =
-        await Match.create({
-          user1: userId,
+      const match = await Match.create({
+        user1: userId,
 
-          user2:
-            matchedQueueUser.user,
+        user2: matchedQueueUser.user,
 
-          purpose:
-            currentUser.purpose,
+        purpose: currentUser.purpose,
 
-          status: "matched",
+        status: "matched",
 
-          revealUser1: false,
+        revealUser1: false,
 
-          revealUser2: false,
+        revealUser2: false,
 
-          revealed: false,
-        });
+        revealed: false,
+      });
 
       // =================================================
       // REMOVE PARTNER FROM QUEUE
@@ -302,41 +458,53 @@ const joinQueue = async (req, res) => {
       // SOCKET.IO
       // =================================================
 
-      const io =
-        req.app.get("io");
+      const io = req.app.get("io");
 
-      const user1Socket =
-        connectedUsers.get(
-          userId.toString()
-        );
+      const user1Socket = connectedUsers.get(
+        userId.toString()
+      );
 
-      const user2Socket =
-        connectedUsers.get(
-          matchedQueueUser.user.toString()
-        );
+      const user2Socket = connectedUsers.get(
+        matchedQueueUser.user.toString()
+      );
 
       // =================================================
       // PARTNER DATA
       // =================================================
 
       const partnerData = {
-        username:
-          matchedPartner.username,
+        username: matchedPartner.username,
 
-        gender:
-          matchedPartner.gender,
+        gender: matchedPartner.gender,
 
-        department:
-          matchedPartner.department,
+        department: matchedPartner.department,
 
-        year:
-          matchedPartner.year,
+        year: matchedPartner.year,
 
-        profileImage:
-          matchedPartner.profileImage,
+        profileImage: matchedPartner.profileImage,
 
-        purpose:
-          matchedPartner.purpose,
+        purpose: matchedPartner.purpose,
+
+        bio: matchedPartner.bio,
+
+        interests: matchedPartner.interests || [],
+
+        studySubjects:
+          matchedPartner.studySubjects || [],
+
+        studyAvailability:
+          matchedPartner.studyAvailability || [],
+
+        studyMode:
+          matchedPartner.studyMode || "Both",
+
+        studyStyle:
+          matchedPartner.studyStyle || "Both",
+
+        compatibilityScore:
+          currentUser.purpose === "Study Buddy"
+            ? bestScore
+            : null,
       };
 
       // =================================================
@@ -347,11 +515,9 @@ const joinQueue = async (req, res) => {
         io.to(user1Socket).emit(
           "matchFound",
           {
-            matchId:
-              match._id,
+            matchId: match._id,
 
-            partner:
-              partnerData,
+            partner: partnerData,
           }
         );
 
@@ -365,11 +531,18 @@ const joinQueue = async (req, res) => {
       // =================================================
 
       if (user2Socket) {
+        const user2Score =
+          currentUser.purpose === "Study Buddy"
+            ? getStudyBuddyScore(
+                matchedPartner,
+                currentUser
+              )
+            : null;
+
         io.to(user2Socket).emit(
           "matchFound",
           {
-            matchId:
-              match._id,
+            matchId: match._id,
 
             partner: {
               username:
@@ -389,6 +562,27 @@ const joinQueue = async (req, res) => {
 
               purpose:
                 currentUser.purpose,
+
+              bio:
+                currentUser.bio,
+
+              interests:
+                currentUser.interests || [],
+
+              studySubjects:
+                currentUser.studySubjects || [],
+
+              studyAvailability:
+                currentUser.studyAvailability || [],
+
+              studyMode:
+                currentUser.studyMode || "Both",
+
+              studyStyle:
+                currentUser.studyStyle || "Both",
+
+              compatibilityScore:
+                user2Score,
             },
           }
         );
@@ -405,14 +599,16 @@ const joinQueue = async (req, res) => {
       return res.status(200).json({
         matched: true,
 
-        message:
-          "🎉 Match Found!",
+        message: "🎉 Match Found!",
 
-        matchId:
-          match._id,
+        matchId: match._id,
 
-        partner:
-          partnerData,
+        partner: partnerData,
+
+        compatibilityScore:
+          currentUser.purpose === "Study Buddy"
+            ? bestScore
+            : null,
       });
     }
 
@@ -431,8 +627,7 @@ const joinQueue = async (req, res) => {
     await Queue.create({
       user: userId,
 
-      gender:
-        currentUser.gender,
+      gender: currentUser.gender,
 
       interestedIn:
         currentUser.interestedIn,
@@ -452,70 +647,284 @@ const joinQueue = async (req, res) => {
         "⏳ Waiting for a compatible student...",
     });
   } catch (err) {
-    console.log(
-      "❌ MATCH ERROR"
+    console.error(
+      "❌ Match controller error:",
+      err
     );
 
-    console.log(err);
-
     return res.status(500).json({
-      message:
-        err.message ||
-        "Something went wrong while finding a match.",
+      message: "Server error while finding a match.",
+      error:
+        process.env.NODE_ENV === "development"
+          ? err.message
+          : undefined,
     });
   }
 };
 
 // ======================================================
-// CANCEL MATCH SEARCH
+// CANCEL QUEUE
 // ======================================================
 
 const cancelQueue = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    console.log(
-      "🛑 CANCEL MATCH SEARCH:",
-      userId
-    );
+    const result = await Queue.deleteOne({
+      user: userId,
+    });
 
-    const removed =
-      await Queue.findOneAndDelete({
-        user: userId,
-      });
-
-    if (!removed) {
+    if (result.deletedCount === 0) {
       return res.status(404).json({
-        cancelled: false,
-
-        message:
-          "You are not currently searching for a match.",
+        message: "You are not currently waiting for a match.",
       });
     }
 
-    console.log(
-      "✅ User removed from match queue"
-    );
-
     return res.status(200).json({
-      cancelled: true,
-
-      message:
-        "Match search cancelled successfully.",
+      message: "Match search cancelled.",
     });
   } catch (err) {
-    console.log(
-      "❌ CANCEL QUEUE ERROR"
+    console.error(
+      "❌ Cancel queue error:",
+      err
     );
 
-    console.log(err);
+    return res.status(500).json({
+      message: "Failed to cancel match search.",
+    });
+  }
+};
+
+// ======================================================
+// GET MATCH STATUS
+// ======================================================
+
+const getMatchStatus = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const queueEntry = await Queue.findOne({
+      user: userId,
+    });
+
+    if (queueEntry) {
+      return res.status(200).json({
+        waiting: true,
+        purpose: queueEntry.purpose,
+      });
+    }
+
+    const match = await Match.findOne({
+      $or: [
+        {
+          user1: userId,
+        },
+        {
+          user2: userId,
+        },
+      ],
+      status: "matched",
+    })
+      .populate(
+        "user1",
+        "fullName username department year profileImage bio age gender location interests purpose studySubjects studyAvailability studyMode studyStyle"
+      )
+      .populate(
+        "user2",
+        "fullName username department year profileImage bio age gender location interests purpose studySubjects studyAvailability studyMode studyStyle"
+      );
+
+    if (!match) {
+      return res.status(200).json({
+        waiting: false,
+        matched: false,
+      });
+    }
+
+    const partner =
+      match.user1._id.toString() === userId.toString()
+        ? match.user2
+        : match.user1;
+
+    let compatibilityScore = null;
+
+    if (match.purpose === "Study Buddy") {
+      const currentUser =
+        await User.findById(userId);
+
+      if (currentUser) {
+        compatibilityScore =
+          getStudyBuddyScore(
+            currentUser,
+            partner
+          );
+      }
+    }
+
+    return res.status(200).json({
+      waiting: false,
+
+      matched: true,
+
+      matchId: match._id,
+
+      purpose: match.purpose,
+
+      partner: {
+        fullName: partner.fullName,
+
+        username: partner.username,
+
+        department: partner.department,
+
+        year: partner.year,
+
+        profileImage: partner.profileImage,
+
+        bio: partner.bio,
+
+        age: partner.age,
+
+        gender: partner.gender,
+
+        location: partner.location,
+
+        interests: partner.interests || [],
+
+        purpose: partner.purpose,
+
+        studySubjects:
+          partner.studySubjects || [],
+
+        studyAvailability:
+          partner.studyAvailability || [],
+
+        studyMode:
+          partner.studyMode || "Both",
+
+        studyStyle:
+          partner.studyStyle || "Both",
+
+        compatibilityScore,
+      },
+    });
+  } catch (err) {
+    console.error(
+      "❌ Match status error:",
+      err
+    );
 
     return res.status(500).json({
-      cancelled: false,
+      message: "Failed to get match status.",
+    });
+  }
+};
 
-      message:
-        err.message ||
-        "Unable to cancel match search.",
+// ======================================================
+// GET USER'S CURRENT MATCH
+// ======================================================
+
+const getCurrentMatch = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const match = await Match.findOne({
+      $or: [
+        {
+          user1: userId,
+        },
+        {
+          user2: userId,
+        },
+      ],
+      status: "matched",
+    })
+      .populate(
+        "user1",
+        "fullName username department year profileImage bio age gender location interests purpose studySubjects studyAvailability studyMode studyStyle"
+      )
+      .populate(
+        "user2",
+        "fullName username department year profileImage bio age gender location interests purpose studySubjects studyAvailability studyMode studyStyle"
+      );
+
+    if (!match) {
+      return res.status(404).json({
+        message: "No active match found.",
+      });
+    }
+
+    const partner =
+      match.user1._id.toString() === userId.toString()
+        ? match.user2
+        : match.user1;
+
+    let compatibilityScore = null;
+
+    if (match.purpose === "Study Buddy") {
+      const currentUser =
+        await User.findById(userId);
+
+      if (currentUser) {
+        compatibilityScore =
+          getStudyBuddyScore(
+            currentUser,
+            partner
+          );
+      }
+    }
+
+    return res.status(200).json({
+      matchId: match._id,
+
+      purpose: match.purpose,
+
+      partner: {
+        fullName: partner.fullName,
+
+        username: partner.username,
+
+        department: partner.department,
+
+        year: partner.year,
+
+        profileImage: partner.profileImage,
+
+        bio: partner.bio,
+
+        age: partner.age,
+
+        gender: partner.gender,
+
+        location: partner.location,
+
+        interests: partner.interests || [],
+
+        purpose: partner.purpose,
+
+        studySubjects:
+          partner.studySubjects || [],
+
+        studyAvailability:
+          partner.studyAvailability || [],
+
+        studyMode:
+          partner.studyMode || "Both",
+
+        studyStyle:
+          partner.studyStyle || "Both",
+
+        compatibilityScore,
+      },
+    });
+  } catch (err) {
+    console.error(
+      "❌ Current match error:",
+      err
+    );
+
+    return res.status(500).json({
+      message: "Failed to get current match.",
     });
   }
 };
@@ -524,37 +933,21 @@ const cancelQueue = async (req, res) => {
 // REVEAL IDENTITY
 // ======================================================
 
-const revealIdentity = async (
-  req,
-  res
-) => {
+const revealIdentity = async (req, res) => {
   try {
-    const {
-      matchId,
-    } = req.body;
+    const userId = req.user.id;
 
-    const userId =
-      req.user.id;
+    const matchId = (req.body && req.body.matchId) || req.params.matchId;
 
-    // ==================================================
-    // FIND MATCH
-    // ==================================================
-
-    const match =
-      await Match.findById(
-        matchId
-      );
+    const match = await Match.findById(
+      matchId
+    );
 
     if (!match) {
       return res.status(404).json({
-        message:
-          "Match not found",
+        message: "Match not found.",
       });
     }
-
-    // ==================================================
-    // CHECK USER BELONGS TO MATCH
-    // ==================================================
 
     const isUser1 =
       match.user1.toString() ===
@@ -567,13 +960,9 @@ const revealIdentity = async (
     if (!isUser1 && !isUser2) {
       return res.status(403).json({
         message:
-          "You are not part of this match.",
+          "You are not allowed to access this match.",
       });
     }
-
-    // ==================================================
-    // MARK USER AS REVEALED
-    // ==================================================
 
     if (isUser1) {
       match.revealUser1 = true;
@@ -583,86 +972,192 @@ const revealIdentity = async (
       match.revealUser2 = true;
     }
 
-    // ==================================================
-    // BOTH USERS REVEALED
-    // ==================================================
-
     if (
       match.revealUser1 &&
       match.revealUser2
     ) {
       match.revealed = true;
 
-      // =================================================
-      // CHECK EXISTING FRIENDSHIP
-      // =================================================
-
-      const existingFriend =
-        await Friend.findOne({
-          $or: [
-            {
-              user1:
-                match.user1,
-
-              user2:
-                match.user2,
-            },
-
-            {
-              user1:
-                match.user2,
-
-              user2:
-                match.user1,
-            },
-          ],
-        });
-
-      // =================================================
-      // CREATE FRIENDSHIP
-      // =================================================
+      // Automatically create a Friend document if it doesn't already exist
+      const existingFriend = await Friend.findOne({
+        $or: [
+          { user1: match.user1, user2: match.user2 },
+          { user1: match.user2, user2: match.user1 },
+        ],
+      });
 
       if (!existingFriend) {
         await Friend.create({
-          user1:
-            match.user1,
-
-          user2:
-            match.user2,
+          user1: match.user1,
+          user2: match.user2,
         });
-
-        console.log(
-          "🤝 Friendship created"
-        );
+        console.log("🤝 Added to Friends list upon mutual reveal!");
       }
     }
 
     await match.save();
 
-    // ==================================================
-    // RESPONSE
-    // ==================================================
-
     return res.status(200).json({
+      message: "Identity reveal updated.",
+
+      revealUser1:
+        match.revealUser1,
+
+      revealUser2:
+        match.revealUser2,
+
       revealed:
         match.revealed,
-
-      message:
-        match.revealed
-          ? "🎉 Identity Revealed! You are now friends."
-          : "👀 Waiting for the other user to reveal their identity...",
     });
   } catch (err) {
-    console.log(
-      "❌ REVEAL ERROR"
+    console.error(
+      "❌ Reveal identity error:",
+      err
     );
 
-    console.log(err);
+    return res.status(500).json({
+      message: "Failed to reveal identity.",
+    });
+  }
+};
+
+// ======================================================
+// GET CONNECTION HISTORY
+// ======================================================
+
+const getConnectionHistory = async (
+  req,
+  res
+) => {
+  try {
+    const userId = req.user.id;
+
+    const matches =
+      await Match.find({
+        $or: [
+          {
+            user1: userId,
+          },
+          {
+            user2: userId,
+          },
+        ],
+      })
+        .sort({
+          createdAt: -1,
+        })
+        .populate(
+          "user1",
+          "fullName username department year profileImage bio age gender location interests purpose studySubjects studyAvailability studyMode studyStyle"
+        )
+        .populate(
+          "user2",
+          "fullName username department year profileImage bio age gender location interests purpose studySubjects studyAvailability studyMode studyStyle"
+        );
+
+    const history = matches.map(
+      (match) => {
+        const partner =
+          match.user1._id.toString() ===
+          userId.toString()
+            ? match.user2
+            : match.user1;
+
+        let compatibilityScore = null;
+
+        if (match.purpose === "Study Buddy") {
+          const currentUser =
+            match.user1._id.toString() ===
+            userId.toString()
+              ? match.user1
+              : match.user2;
+
+          compatibilityScore =
+            getStudyBuddyScore(
+              currentUser,
+              partner
+            );
+        }
+
+        return {
+          matchId: match._id,
+
+          purpose:
+            match.purpose,
+
+          status:
+            match.status,
+
+          createdAt:
+            match.createdAt,
+
+          revealed:
+            match.revealed,
+
+          partner: {
+            fullName:
+              partner.fullName,
+
+            username:
+              partner.username,
+
+            department:
+              partner.department,
+
+            year:
+              partner.year,
+
+            profileImage:
+              partner.profileImage,
+
+            bio:
+              partner.bio,
+
+            age:
+              partner.age,
+
+            gender:
+              partner.gender,
+
+            location:
+              partner.location,
+
+            interests:
+              partner.interests || [],
+
+            purpose:
+              partner.purpose,
+
+            studySubjects:
+              partner.studySubjects || [],
+
+            studyAvailability:
+              partner.studyAvailability || [],
+
+            studyMode:
+              partner.studyMode || "Both",
+
+            studyStyle:
+              partner.studyStyle || "Both",
+
+            compatibilityScore,
+          },
+        };
+      }
+    );
+
+    return res.status(200).json({
+      matches: history,
+    });
+  } catch (err) {
+    console.error(
+      "❌ Connection history error:",
+      err
+    );
 
     return res.status(500).json({
       message:
-        err.message ||
-        "Something went wrong.",
+        "Failed to get connection history.",
     });
   }
 };
@@ -674,5 +1169,10 @@ const revealIdentity = async (
 module.exports = {
   joinQueue,
   cancelQueue,
+  getMatchStatus,
+  getCurrentMatch,
   revealIdentity,
+  getConnectionHistory,
+  areUsersCompatible,
+  getStudyBuddyScore,
 };
