@@ -125,6 +125,11 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    // Add badges array referencing Badge model
+    // NOTE: Badge model will be defined in backend/models/Badge.js
+    // This field stores earned badge ObjectIds for the user
+    // Using ObjectId reference for future population
+    badges: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }]
   }
 );
 

@@ -52,37 +52,10 @@ app.use(express.json());
 
 // ================= ROUTES =================
 
-app.use(
-  "/api/auth",
-  authRoutes
-);
+const teaSpotsRoutes = require('./routes/teaSpotsRoutes');
 
-app.use(
-  "/api/profile",
-  profileRoutes
-);
-
-app.use(
-  "/api/friends",
-  friendRoutes
-);
-
-app.use(
-  "/api/match",
-  matchRoutes
-);
-
-app.use(
-  "/api/messages",
-  messageRoutes
-);
-
-// ⭐ NEW DASHBOARD ROUTE
-app.use(
-  "/api/dashboard",
-  dashboardRoutes
-);
-
+// Register tea spot routes
+app.use('/api/tea-spots', teaSpotsRoutes);
 // ================= TEST ROUTE =================
 
 app.get("/", (req, res) => {
