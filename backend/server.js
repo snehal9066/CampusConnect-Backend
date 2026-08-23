@@ -15,13 +15,8 @@ const profileRoutes = require("./routes/profileRoutes");
 const matchRoutes = require("./routes/matchRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const teaSpotsRoutes = require("./routes/teaSpotsRoutes");
 
-console.log("authRoutes:", typeof authRoutes);
-console.log("profileRoutes:", typeof profileRoutes);
-console.log("friendRoutes:", typeof friendRoutes);
-console.log("matchRoutes:", typeof matchRoutes);
-console.log("messageRoutes:", typeof messageRoutes);
-console.log("dashboardRoutes:", typeof dashboardRoutes);
 // ================= SOCKET =================
 
 const { socketHandler } = require("./socket/socket");
@@ -36,15 +31,29 @@ const app = express();
 
 const server = http.createServer(app);
 
+// ================= ALLOWED ORIGINS =================
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://campus-connect-frontend-nine.vercel.app",
+  "https://campus-connect-frontend-iiht76k-snehal9066s-projects.vercel.app",
+];
+
 // ================= MIDDLEWARE =================
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://campus-connect-frontend-nine.vercel.app",
-    ],
+    origin: function (origin, callback) {
+      // Allow requests without an origin, such as Postman
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -52,30 +61,38 @@ app.use(express.json());
 
 // ================= ROUTES =================
 
-const teaSpotsRoutes = require('./routes/teaSpotsRoutes');
+app.use("/api/auth", authRoutes);
 
-// Register tea spot routes
-app.use('/api/tea-spots', teaSpotsRoutes);
+app.use("/api/friends", friendRoutes);
+
+app.use("/api/profile", profileRoutes);
+
+app.use("/api/match", matchRoutes);
+
+app.use("/api/messages", messageRoutes);
+
+app.use("/api/dashboard", dashboardRoutes);
+
+app.use("/api/tea-spots", teaSpotsRoutes);
+
 // ================= TEST ROUTE =================
 
 app.get("/", (req, res) => {
-  res.send(
-    "🚀 CampusConnect Backend Running"
-  );
+  res.send("🚀 CampusConnect Backend Running");
 });
 
 // ================= SOCKET.IO =================
 
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:3000",
-      "https://campus-connect-frontend-nine.vercel.app",
-    ],
-    methods: [
-      "GET",
-      "POST",
-    ],
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST"],
     credentials: true,
   },
 });
@@ -88,11 +105,8 @@ app.set("io", io);
 
 // ================= SERVER =================
 
-const PORT =
-  process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
-  console.log(
-    `🚀 Server running on port ${PORT}`
-  );
+  console.log(`🚀 Server running on port ${PORT}`);
 });
