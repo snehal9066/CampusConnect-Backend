@@ -1,100 +1,86 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const TeaSpot = require('../models/TeaSpot');
 
-// Helper to get the Socket.IO instance
-function getIo(req) {
-  return req.app.get('io');
-}
+const TeaSpot = require("../models/TeaSpot");
+const authMiddleware = require("../middleware/authMiddleware");
 
-// GET /api/tea-spots - list all spots (already exists but keep for completeness)
-router.get('/', async (req, res) => {
+// GET all tea spots
+router.get("/", async (req, res) => {
   try {
-    const spots = await TeaSpot.find();
-    res.json(spots);
-  } catch (err) {
-    console.error('❌ TeaSpot list error:', err);
-    res.status(500).json({ message: 'Server error' });
+    const spots = await TeaSpot.find()
+      .populate("createdBy", "fullName username")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(spots);
+  } catch (error) {
+    console.error("Error fetching tea spots:", error);
+
+    res.status(500).json({
+      message: "Failed to fetch tea spots",
+    });
   }
 });
 
-// GET /api/tea-spots/:id - spot details
-router.get('/:id', async (req, res) => {
+// GET single tea spot
+router.get("/:id", async (req, res) => {
   try {
-    const spot = await TeaSpot.findById(req.params.id);
-    if (!spot) return res.status(404).json({ message: 'TeaSpot not found' });
-    res.json(spot);
-  } catch (err) {
-    console.error('❌ TeaSpot detail error:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// POST /api/tea-spots/:id/checkin - increment check‑in count
-router.post('/:id/checkin', async (req, res) => {
-  try {
-    const spot = await TeaSpot.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { checkInCount: 1 } },
-      { new: true }
+    const spot = await TeaSpot.findById(req.params.id).populate(
+      "createdBy",
+      "fullName username"
     );
-    if (!spot) return res.status(404).json({ message: 'TeaSpot not found' });
 
-    const io = getIo(req);
-    io.to(`spot-${spot._id}`).emit('checkInUpdate', { count: spot.checkInCount });
-    res.json({ checkInCount: spot.checkInCount });
-  } catch (err) {
-    console.error('❌ Check‑in error:', err);
-    res.status(500).json({ message: 'Server error' });
+    if (!spot) {
+      return res.status(404).json({
+        message: "Tea spot not found",
+      });
+    }
+
+    res.status(200).json(spot);
+  } catch (error) {
+    console.error("Error fetching tea spot:", error);
+
+    res.status(500).json({
+      message: "Failed to fetch tea spot",
+    });
   }
 });
 
-// POST /api/tea-spots/:id/rate - add a rating (1‑5)
-router.post('/:id/rate', async (req, res) => {
-  const { rating } = req.body; // expect a number
-  if (!rating || rating < 1 || rating > 5) {
-    return res.status(400).json({ message: 'Invalid rating' });
-  }
+// CREATE a new tea spot
+router.post("/", authMiddleware, async (req, res) => {
   try {
-    const spot = await TeaSpot.findById(req.params.id);
-    if (!spot) return res.status(404).json({ message: 'TeaSpot not found' });
-    spot.rating.push(rating);
-    await spot.save();
+    const {
+      name,
+      description,
+      imageUrl,
+      lat,
+      lng,
+    } = req.body;
 
-    const io = getIo(req);
-    io.to(`spot-${spot._id}`).emit('ratingUpdate', { rating: spot.rating });
-    res.json({ rating: spot.rating });
-  } catch (err) {
-    console.error('❌ Rating error:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+    if (!name || !lat || !lng) {
+      return res.status(400).json({
+        message: "Name, latitude and longitude are required",
+      });
+    }
 
-// GET /api/tea-spots/:id/messages - placeholder (live via sockets)
-router.get('/:id/messages', async (req, res) => {
-  // No persistent storage for spot messages yet; return empty array
-  res.json([]);
-});
+    const newSpot = await TeaSpot.create({
+      name,
+      description,
+      imageUrl,
+      lat: Number(lat),
+      lng: Number(lng),
 
-// POST /api/tea-spots/:id/messages - broadcast new message via Socket.IO
-router.post('/:id/messages', async (req, res) => {
-  const { sender, text } = req.body;
-  if (!sender || !text) {
-    return res.status(400).json({ message: 'Missing sender or text' });
-  }
-  try {
-    const io = getIo(req);
-    const message = {
-      _id: Date.now().toString(), // temporary id
-      sender,
-      text,
-      createdAt: new Date(),
-    };
-    io.to(`spot-${req.params.id}`).emit('receiveMessage', message);
-    res.json(message);
-  } catch (err) {
-    console.error('❌ Spot message error:', err);
-    res.status(500).json({ message: 'Server error' });
+      // Comes from JWT
+      createdBy: req.user.id || req.user._id,
+    });
+
+    res.status(201).json(newSpot);
+  } catch (error) {
+    console.error("Error creating tea spot:", error);
+
+    res.status(500).json({
+      message: "Something went wrong",
+      error: error.message,
+    });
   }
 });
 
