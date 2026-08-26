@@ -2,13 +2,28 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// Register User
+// ==========================================
+// REGISTER USER
+// ==========================================
+
 const registerUser = async (req, res) => {
   try {
     const { fullName, username, department, year, password } = req.body;
 
+    // Basic validation
+    if (!fullName || !username || !department || !year || !password) {
+      return res.status(400).json({
+        message: "All fields are required",
+      });
+    }
+
+    // Normalize username
+    const normalizedUsername = username.trim().toLowerCase();
+
     // Check if username already exists
-    const existingUser = await User.findOne({ username });
+    const existingUser = await User.findOne({
+      username: normalizedUsername,
+    });
 
     if (existingUser) {
       return res.status(400).json({
@@ -21,35 +36,63 @@ const registerUser = async (req, res) => {
 
     // Create user
     const user = await User.create({
-      fullName,
-      username,
-      department,
+      fullName: fullName.trim(),
+      username: normalizedUsername,
+      department: department.trim(),
       year,
       password: hashedPassword,
     });
 
+    // Never send password back
+    const safeUser = user.toObject();
+    delete safeUser.password;
+
     res.status(201).json({
-      message: "User Registered Successfully",
-      user,
+      message: "User registered successfully",
+      user: safeUser,
     });
   } catch (error) {
+    console.error("Registration error:", error);
+
     res.status(500).json({
-      message: error.message,
+      message: "Registration failed",
     });
   }
 };
 
-// Login User
+// ==========================================
+// LOGIN USER
+// ==========================================
+
 const loginUser = async (req, res) => {
   try {
     const { username, password } = req.body;
 
+    if (!username || !password) {
+      return res.status(400).json({
+        message: "Username and password are required",
+      });
+    }
+
+    // Normalize username
+    const normalizedUsername = username.trim().toLowerCase();
+
     // Check if user exists
-    const user = await User.findOne({ username });
+    const user = await User.findOne({
+      username: normalizedUsername,
+    });
 
     if (!user) {
-      return res.status(400).json({
-        message: "User not found",
+      return res.status(401).json({
+        message: "Invalid username or password",
+      });
+    }
+
+    // BLOCK SUSPENDED USERS
+    if (user.isSuspended) {
+      return res.status(403).json({
+        message:
+          "Your account has been suspended. Please contact the administrator.",
       });
     }
 
@@ -57,44 +100,87 @@ const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(400).json({
-        message: "Invalid password",
+      return res.status(401).json({
+        message: "Invalid username or password",
       });
     }
 
     // Generate JWT Token
     const token = jwt.sign(
-      { id: user._id },
+      {
+        id: user._id.toString(),
+      },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      {
+        expiresIn: "7d",
+      }
     );
 
+    // Never send password back
+    const safeUser = user.toObject();
+    delete safeUser.password;
+
     res.status(200).json({
-      message: "Login Successful",
+      message: "Login successful",
       token,
-      user,
+      user: safeUser,
     });
   } catch (error) {
+    console.error("Login error:", error);
+
     res.status(500).json({
-      message: error.message,
+      message: "Login failed. Please try again.",
     });
   }
 };
 
-// Verify Email
+// ==========================================
+// VERIFY USER
+// ==========================================
+
 const verifyUser = async (req, res) => {
   try {
     const { token } = req.body;
-    // Simple token verification (replace with proper JWT verification in production)
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!token) {
+      return res.status(400).json({
+        message: "Verification token is required",
+      });
+    }
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET
+    );
+
     const user = await User.findById(decoded.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
     user.verified = true;
+
     await user.save();
-    res.status(200).json({ message: 'Email verified', user });
+
+    const safeUser = user.toObject();
+    delete safeUser.password;
+
+    res.status(200).json({
+      message: "User verified successfully",
+      user: safeUser,
+    });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    return res.status(400).json({
+      message: "Invalid or expired verification token",
+    });
   }
 };
 
-module.exports = { registerUser, loginUser, verifyUser };
+module.exports = {
+  registerUser,
+  loginUser,
+  verifyUser,
+};

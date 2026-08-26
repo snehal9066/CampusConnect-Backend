@@ -64,8 +64,29 @@ const userSchema = new mongoose.Schema(
       default: "Female",
     },
 
-    verified: { type: Boolean, default: false },
-      purpose: {
+    verified: {
+      type: Boolean,
+      default: false,
+    },
+
+    // =========================
+    // ADMIN / USER ROLE
+    // =========================
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+
+    // =========================
+    // ACCOUNT STATUS
+    // =========================
+    isSuspended: {
+      type: Boolean,
+      default: false,
+    },
+
+    purpose: {
       type: String,
       enum: [
         "Friendship",
@@ -82,9 +103,9 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // ==========================================
+    // =========================
     // STUDY BUDDY PREFERENCES
-    // ==========================================
+    // =========================
 
     studySubjects: [
       {
@@ -112,9 +133,9 @@ const userSchema = new mongoose.Schema(
       default: "Both",
     },
 
-    // ==========================================
+    // =========================
     // FRIENDS
-    // ==========================================
+    // =========================
 
     friends: [
       {
@@ -122,14 +143,20 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+
+    // =========================
+    // BADGES
+    // =========================
+
+    badges: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Badge",
+      },
+    ],
   },
   {
     timestamps: true,
-    // Add badges array referencing Badge model
-    // NOTE: Badge model will be defined in backend/models/Badge.js
-    // This field stores earned badge ObjectIds for the user
-    // Using ObjectId reference for future population
-    badges: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }]
   }
 );
 
