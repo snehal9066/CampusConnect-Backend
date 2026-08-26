@@ -9,9 +9,15 @@ const {
   getAllUsers,
   suspendUser,
   unsuspendUser,
+  getAuditLogs,
 } = require("../controllers/adminController");
 
-// All admin routes require login + admin permission
+// ==========================================
+// ALL ADMIN ROUTES REQUIRE:
+// 1. Valid login token
+// 2. Admin role
+// ==========================================
+
 router.use(authMiddleware);
 router.use(adminMiddleware);
 
@@ -20,6 +26,9 @@ router.get("/stats", getAdminStats);
 
 // Get all users
 router.get("/users", getAllUsers);
+
+// Get admin audit logs
+router.get("/audit-logs", getAuditLogs);
 
 // Suspend a user
 router.patch("/users/:id/suspend", suspendUser);

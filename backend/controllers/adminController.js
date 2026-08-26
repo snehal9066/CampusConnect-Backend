@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const AdminAuditLog = require("../models/AdminAuditLog");
 
 // ==========================================
 // GET ADMIN STATISTICS
@@ -74,7 +75,7 @@ const suspendUser = async (req, res) => {
       });
     }
 
-    // Extra protection: do not allow suspending another admin
+    // Protect admin accounts
     if (user.role === "admin") {
       return res.status(403).json({
         message: "Admin accounts cannot be suspended",
@@ -84,6 +85,14 @@ const suspendUser = async (req, res) => {
     user.isSuspended = true;
 
     await user.save();
+
+    // Create audit log
+    await AdminAuditLog.create({
+      admin: req.user.id,
+      action: "SUSPEND_USER",
+      targetUser: user._id,
+      details: `${req.user.username} suspended ${user.username}`,
+    });
 
     const safeUser = user.toObject();
     delete safeUser.password;
@@ -115,9 +124,24 @@ const unsuspendUser = async (req, res) => {
       });
     }
 
+    // Protect admin accounts
+    if (user.role === "admin") {
+      return res.status(403).json({
+        message: "Admin accounts cannot be modified",
+      });
+    }
+
     user.isSuspended = false;
 
     await user.save();
+
+    // Create audit log
+    await AdminAuditLog.create({
+      admin: req.user.id,
+      action: "UNSUSPEND_USER",
+      targetUser: user._id,
+      details: `${req.user.username} unsuspended ${user.username}`,
+    });
 
     const safeUser = user.toObject();
     delete safeUser.password;
@@ -135,9 +159,32 @@ const unsuspendUser = async (req, res) => {
   }
 };
 
+// ==========================================
+// GET ADMIN AUDIT LOGS
+// ==========================================
+
+const getAuditLogs = async (req, res) => {
+  try {
+    const logs = await AdminAuditLog.find()
+      .populate("admin", "fullName username")
+      .populate("targetUser", "fullName username")
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    res.status(200).json(logs);
+  } catch (error) {
+    console.error("Get audit logs error:", error);
+
+    res.status(500).json({
+      message: "Failed to fetch audit logs",
+    });
+  }
+};
+
 module.exports = {
   getAdminStats,
   getAllUsers,
   suspendUser,
   unsuspendUser,
+  getAuditLogs,
 };
