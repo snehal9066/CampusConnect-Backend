@@ -19,6 +19,7 @@ const messageRoutes = require("./routes/messageRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const teaSpotsRoutes = require("./routes/teaSpotsRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const datingRoutes = require("./routes/datingRoutes");
 
 // ================= SOCKET =================
 
@@ -39,7 +40,6 @@ app.set("trust proxy", 1);
 
 // ================= SECURITY =================
 
-// Helmet adds security-related HTTP headers
 app.use(
   helmet({
     crossOriginResourcePolicy: {
@@ -74,7 +74,9 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(new Error("Not allowed by CORS"));
+      return callback(
+        new Error("Not allowed by CORS")
+      );
     },
 
     credentials: true,
@@ -97,7 +99,6 @@ app.use(
 
 // ================= BODY PARSING =================
 
-// Prevent extremely large JSON requests
 app.use(
   express.json({
     limit: "1mb",
@@ -106,15 +107,15 @@ app.use(
 
 // ================= GLOBAL API RATE LIMIT =================
 
-// Protects the API from excessive requests
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   limit: 500,
   standardHeaders: "draft-8",
   legacyHeaders: false,
 
   message: {
-    message: "Too many requests. Please try again later.",
+    message:
+      "Too many requests. Please try again later.",
   },
 });
 
@@ -122,9 +123,8 @@ app.use("/api", apiLimiter);
 
 // ================= LOGIN RATE LIMIT =================
 
-// Stronger protection specifically for login attempts
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   limit: 10,
   standardHeaders: "draft-8",
   legacyHeaders: false,
@@ -134,43 +134,77 @@ const loginLimiter = rateLimit({
       "Too many login attempts. Please wait 15 minutes and try again.",
   },
 
-  // Only count failed login attempts
   skipSuccessfulRequests: true,
 });
 
-// Apply only to login
-app.use("/api/auth/login", loginLimiter);
+app.use(
+  "/api/auth/login",
+  loginLimiter
+);
 
 // ================= ROUTES =================
 
 // Authentication
-app.use("/api/auth", authRoutes);
+app.use(
+  "/api/auth",
+  authRoutes
+);
 
 // Admin
-app.use("/api/admin", adminRoutes);
+app.use(
+  "/api/admin",
+  adminRoutes
+);
 
 // Friends
-app.use("/api/friends", friendRoutes);
+app.use(
+  "/api/friends",
+  friendRoutes
+);
 
 // Profile
-app.use("/api/profile", profileRoutes);
+app.use(
+  "/api/profile",
+  profileRoutes
+);
 
 // Match
-app.use("/api/match", matchRoutes);
+app.use(
+  "/api/match",
+  matchRoutes
+);
 
 // Messages
-app.use("/api/messages", messageRoutes);
+app.use(
+  "/api/messages",
+  messageRoutes
+);
 
 // Dashboard
-app.use("/api/dashboard", dashboardRoutes);
+app.use(
+  "/api/dashboard",
+  dashboardRoutes
+);
 
 // Tea Spots
-app.use("/api/tea-spots", teaSpotsRoutes);
+app.use(
+  "/api/tea-spots",
+  teaSpotsRoutes
+);
+
+// ================= DATING =================
+
+app.use(
+  "/api/dating",
+  datingRoutes
+);
 
 // ================= TEST ROUTE =================
 
 app.get("/", (req, res) => {
-  res.send("🚀 CampusConnect Backend Running");
+  res.send(
+    "🚀 CampusConnect Backend Running"
+  );
 });
 
 // ================= 404 HANDLER =================
@@ -183,42 +217,69 @@ app.use((req, res) => {
 
 // ================= ERROR HANDLER =================
 
-app.use((err, req, res, next) => {
-  console.error("Server error:", err);
+app.use(
+  (err, req, res, next) => {
+    console.error(
+      "Server error:",
+      err
+    );
 
-  // CORS error
-  if (err.message === "Not allowed by CORS") {
-    return res.status(403).json({
-      message: "Request blocked by server security policy",
+    if (
+      err.message ===
+      "Not allowed by CORS"
+    ) {
+      return res.status(403).json({
+        message:
+          "Request blocked by server security policy",
+      });
+    }
+
+    res.status(500).json({
+      message:
+        "Something went wrong on the server",
     });
   }
-
-  res.status(500).json({
-    message: "Something went wrong on the server",
-  });
-});
+);
 
 // ================= SOCKET.IO =================
 
 const io = new Server(server, {
   cors: {
-    origin: function (origin, callback) {
+    origin: function (
+      origin,
+      callback
+    ) {
       if (!origin) {
-        return callback(null, true);
+        return callback(
+          null,
+          true
+        );
       }
 
       const isAllowed =
         allowedOrigins.includes(origin) ||
-        origin.endsWith(".vercel.app");
+        origin.endsWith(
+          ".vercel.app"
+        );
 
       if (isAllowed) {
-        callback(null, true);
+        callback(
+          null,
+          true
+        );
       } else {
-        callback(new Error("Not allowed by CORS"));
+        callback(
+          new Error(
+            "Not allowed by CORS"
+          )
+        );
       }
     },
 
-    methods: ["GET", "POST"],
+    methods: [
+      "GET",
+      "POST",
+    ],
 
     credentials: true,
   },
@@ -232,8 +293,11 @@ app.set("io", io);
 
 // ================= SERVER =================
 
-const PORT = process.env.PORT || 5000;
+const PORT =
+  process.env.PORT || 5000;
 
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(
+    `🚀 Server running on port ${PORT}`
+  );
 });
