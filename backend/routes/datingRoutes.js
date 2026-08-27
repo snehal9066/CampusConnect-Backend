@@ -10,6 +10,8 @@ const {
   getDatingMatches,
   interactWithDatingProfile,
   getDatingMutualMatches,
+  revealDatingIdentity,
+  getDatingMatchStatus,
   toggleDatingProfile,
   toggleMysteryMode,
 } = require("../controllers/datingController");
@@ -63,6 +65,28 @@ router.get(
   "/matches",
   authMiddleware,
   getDatingMutualMatches
+);
+
+// ==========================================
+// DATING MATCH STATUS
+// ==========================================
+
+// Get the current status of a dating match
+router.get(
+  "/match/:matchId/status",
+  authMiddleware,
+  getDatingMatchStatus
+);
+
+// ==========================================
+// REVEAL IDENTITY
+// ==========================================
+
+// Request / confirm identity reveal for a match
+router.post(
+  "/match/:matchId/reveal",
+  authMiddleware,
+  revealDatingIdentity
 );
 
 // ==========================================
