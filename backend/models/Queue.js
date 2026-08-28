@@ -9,18 +9,10 @@ const queueSchema = new mongoose.Schema(
       unique: true,
     },
 
-    gender: {
-      type: String,
-      required: true,
-    },
-
-    interestedIn: {
-      type: String,
-      required: true,
-    },
-
     purpose: {
       type: String,
+      enum: ["Anonymous Chat"],
+      default: "Anonymous Chat",
       required: true,
     },
   },

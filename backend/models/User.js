@@ -61,7 +61,7 @@ const userSchema = new mongoose.Schema(
     interestedIn: {
       type: String,
       enum: ["Male", "Female", "Everyone"],
-      default: "Female",
+      default: "Everyone",
     },
 
     verified: {
@@ -69,32 +69,25 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
-    // =========================
-    // ADMIN / USER ROLE
-    // =========================
     role: {
       type: String,
       enum: ["user", "admin"],
       default: "user",
     },
 
-    // =========================
-    // ACCOUNT STATUS
-    // =========================
     isSuspended: {
       type: Boolean,
       default: false,
     },
 
+    // ==========================================
+    // ONLY CONNECTION TYPE
+    // ==========================================
+
     purpose: {
       type: String,
-      enum: [
-        "Friendship",
-        "Dating",
-        "Study Buddy",
-        "Coffee Chat",
-      ],
-      default: "Friendship",
+      enum: ["Anonymous Chat"],
+      default: "Anonymous Chat",
     },
 
     interests: [
@@ -103,9 +96,10 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // =========================
-    // STUDY BUDDY PREFERENCES
-    // =========================
+    // ==========================================
+    // STUDY PREFERENCES
+    // Kept in database for future use
+    // ==========================================
 
     studySubjects: [
       {
@@ -133,9 +127,9 @@ const userSchema = new mongoose.Schema(
       default: "Both",
     },
 
-    // =========================
+    // ==========================================
     // FRIENDS
-    // =========================
+    // ==========================================
 
     friends: [
       {
@@ -144,9 +138,9 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // =========================
+    // ==========================================
     // BADGES
-    // =========================
+    // ==========================================
 
     badges: [
       {

@@ -16,7 +16,8 @@ const matchSchema = new mongoose.Schema(
 
     purpose: {
       type: String,
-      enum: ["Friendship", "Dating", "Study Buddy", "Coffee Chat"],
+      enum: ["Anonymous Chat"],
+      default: "Anonymous Chat",
       required: true,
     },
 
@@ -26,13 +27,13 @@ const matchSchema = new mongoose.Schema(
       default: "pending",
     },
 
-    // Existing field
+    // Whether both users have revealed themselves
     revealed: {
       type: Boolean,
       default: false,
     },
 
-    // NEW: Track each user's decision
+    // Individual reveal decisions
     revealUser1: {
       type: Boolean,
       default: false,
@@ -43,7 +44,9 @@ const matchSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 module.exports = mongoose.model("Match", matchSchema);

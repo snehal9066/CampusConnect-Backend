@@ -1,6 +1,7 @@
 const User = require("../models/User");
 
 // ================= UPDATE PROFILE =================
+
 const updateProfile = async (req, res) => {
   try {
     console.log("========== UPDATE PROFILE ==========");
@@ -12,18 +13,17 @@ const updateProfile = async (req, res) => {
       age,
       gender,
       interestedIn,
-      purpose,
       location,
       interests,
-
-      // Study Buddy fields
       studySubjects,
       studyAvailability,
       studyMode,
       studyStyle,
     } = req.body;
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne({
+      username,
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -51,10 +51,6 @@ const updateProfile = async (req, res) => {
       user.interestedIn = interestedIn;
     }
 
-    if (purpose !== undefined) {
-      user.purpose = purpose;
-    }
-
     if (location !== undefined) {
       user.location = location;
     }
@@ -66,7 +62,14 @@ const updateProfile = async (req, res) => {
     }
 
     // ==========================================
-    // STUDY BUDDY FIELDS
+    // ALWAYS ANONYMOUS CHAT
+    // ==========================================
+
+    user.purpose = "Anonymous Chat";
+
+    // ==========================================
+    // STUDY FIELDS
+    // Kept for future use
     // ==========================================
 
     if (studySubjects !== undefined) {
@@ -99,33 +102,21 @@ const updateProfile = async (req, res) => {
 
     await user.save();
 
-    // Read again from MongoDB to verify
     const updatedUser =
-      await User.findOne({ username }).select(
-        "-password"
-      );
+      await User.findOne({
+        username,
+      }).select("-password");
 
-    console.log(
-      "========== AFTER SAVE =========="
-    );
-
+    console.log("========== AFTER SAVE ==========");
     console.log(updatedUser);
-
-    console.log(
-      "================================"
-    );
+    console.log("================================");
 
     return res.status(200).json({
-      message:
-        "Profile Updated Successfully",
-
+      message: "Profile Updated Successfully",
       user: updatedUser,
     });
   } catch (error) {
-    console.log(
-      "PROFILE UPDATE ERROR:"
-    );
-
+    console.log("PROFILE UPDATE ERROR:");
     console.log(error);
 
     return res.status(500).json({
@@ -135,6 +126,7 @@ const updateProfile = async (req, res) => {
 };
 
 // ================= UPLOAD PROFILE PICTURE =================
+
 const uploadProfilePicture = async (
   req,
   res
@@ -142,8 +134,9 @@ const uploadProfilePicture = async (
   try {
     const { username } = req.body;
 
-    const user =
-      await User.findOne({ username });
+    const user = await User.findOne({
+      username,
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -157,8 +150,7 @@ const uploadProfilePicture = async (
       });
     }
 
-    user.profileImage =
-      req.file.path;
+    user.profileImage = req.file.path;
 
     await user.save();
 
@@ -171,10 +163,7 @@ const uploadProfilePicture = async (
       user,
     });
   } catch (error) {
-    console.log(
-      "UPLOAD IMAGE ERROR:"
-    );
-
+    console.log("UPLOAD IMAGE ERROR:");
     console.log(error);
 
     return res.status(500).json({
@@ -184,18 +173,17 @@ const uploadProfilePicture = async (
 };
 
 // ================= GET PROFILE =================
+
 const getProfile = async (
   req,
   res
 ) => {
   try {
-    const { username } =
-      req.params;
+    const { username } = req.params;
 
-    const user =
-      await User.findOne({
-        username,
-      }).select("-password");
+    const user = await User.findOne({
+      username,
+    }).select("-password");
 
     if (!user) {
       return res.status(404).json({
@@ -205,10 +193,7 @@ const getProfile = async (
 
     return res.status(200).json(user);
   } catch (error) {
-    console.log(
-      "GET PROFILE ERROR:"
-    );
-
+    console.log("GET PROFILE ERROR:");
     console.log(error);
 
     return res.status(500).json({
