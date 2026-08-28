@@ -86,9 +86,21 @@ const joinQueue = async (req, res) => {
         });
       }
 
-      currentUser.interestedIn = requestedPreference;
+     await User.findByIdAndUpdate(
+  userId,
+  {
+    $set: {
+      interestedIn: requestedPreference,
+    },
+  },
+  {
+    new: true,
+    runValidators: false,
+  }
+);
 
-      await currentUser.save();
+currentUser.interestedIn =
+  requestedPreference;
     }
 
     console.log("CURRENT USER:");
