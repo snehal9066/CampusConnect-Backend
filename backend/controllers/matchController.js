@@ -7,20 +7,14 @@ const { connectedUsers } = require("../socket/socket");
 // CHECK ANONYMOUS CHAT COMPATIBILITY
 // ======================================================
 //
-// Each user chooses who they want to talk to:
+// Example:
 //
-// Male user:
-// - Female
-// - Everyone
+// User A: Male, wants Female
+// User B: Female, wants Male
 //
-// Female user:
-// - Male
-// - Everyone
+// Result: Compatible
 //
-// Other:
-// - Everyone
-//
-// Both users' preferences must allow the match.
+// Both users must accept each other's gender.
 // ======================================================
 
 const areUsersCompatible = (userA, userB) => {
@@ -67,7 +61,7 @@ const joinQueue = async (req, res) => {
     }
 
     // ==================================================
-    // GET SELECTED PREFERENCE
+    // SAVE CURRENT CHAT PREFERENCE
     // ==================================================
 
     const requestedPreference =
@@ -79,12 +73,18 @@ const joinQueue = async (req, res) => {
       "Everyone",
     ];
 
-    if (
-      requestedPreference &&
-      validPreferences.includes(
-        requestedPreference
-      )
-    ) {
+    if (requestedPreference) {
+      if (
+        !validPreferences.includes(
+          requestedPreference
+        )
+      ) {
+        return res.status(400).json({
+          message:
+            "Invalid chat preference selected.",
+        });
+      }
+
       currentUser.interestedIn =
         requestedPreference;
 
@@ -100,16 +100,17 @@ const joinQueue = async (req, res) => {
     });
 
     // ==================================================
-    // CHECK IF USER IS ALREADY WAITING
+    // CHECK IF ALREADY WAITING
     // ==================================================
 
-    const alreadyWaiting = await Queue.findOne({
-      user: userId,
-    });
+    const alreadyWaiting =
+      await Queue.findOne({
+        user: userId,
+      });
 
     if (alreadyWaiting) {
       console.log(
-        "User is already waiting in the anonymous chat queue"
+        "User is already waiting in queue"
       );
 
       return res.status(400).json({
@@ -119,16 +120,17 @@ const joinQueue = async (req, res) => {
     }
 
     // ==================================================
-    // GET USERS WAITING IN QUEUE
+    // GET WAITING USERS
     // ==================================================
 
-    const waitingUsers = await Queue.find({
-      user: {
-        $ne: userId,
-      },
-    }).sort({
-      createdAt: 1,
-    });
+    const waitingUsers =
+      await Queue.find({
+        user: {
+          $ne: userId,
+        },
+      }).sort({
+        createdAt: 1,
+      });
 
     console.log(
       "Users currently waiting:",
@@ -143,12 +145,13 @@ const joinQueue = async (req, res) => {
     let matchedPartner = null;
 
     for (const queueUser of waitingUsers) {
-      const partnerUser = await User.findById(
-        queueUser.user
-      );
+      const partnerUser =
+        await User.findById(
+          queueUser.user
+        );
 
       // ================================================
-      // REMOVE INVALID / DELETED USERS
+      // REMOVE INVALID USERS
       // ================================================
 
       if (!partnerUser) {
@@ -160,7 +163,7 @@ const joinQueue = async (req, res) => {
       }
 
       // ================================================
-      // CHECK EXISTING ACTIVE MATCH
+      // CHECK IF ALREADY IN ACTIVE MATCH
       // ================================================
 
       const existingMatch =
@@ -188,7 +191,7 @@ const joinQueue = async (req, res) => {
       }
 
       // ================================================
-      // CHECK GENDER PREFERENCE COMPATIBILITY
+      // CHECK GENDER COMPATIBILITY
       // ================================================
 
       const compatible =
@@ -198,7 +201,7 @@ const joinQueue = async (req, res) => {
         );
 
       console.log(
-        `Checking ${currentUser.username} (${currentUser.gender}, wants ${currentUser.interestedIn}) <-> ${partnerUser.username} (${partnerUser.gender}, wants ${partnerUser.interestedIn})`
+        `Checking compatibility: ${currentUser.username} (${currentUser.gender}, wants ${currentUser.interestedIn}) <-> ${partnerUser.username} (${partnerUser.gender}, wants ${partnerUser.interestedIn})`
       );
 
       if (!compatible) {
@@ -210,7 +213,7 @@ const joinQueue = async (req, res) => {
       }
 
       // ================================================
-      // COMPATIBLE PARTNER FOUND
+      // COMPATIBLE USER FOUND
       // ================================================
 
       matchedQueueUser = queueUser;
@@ -236,33 +239,34 @@ const joinQueue = async (req, res) => {
       console.log("MATCH FOUND!");
 
       console.log(
-        currentUser.username,
-        "<->",
-        matchedPartner.username
+        `${currentUser.username} <-> ${matchedPartner.username}`
       );
 
       // =================================================
       // CREATE MATCH
       // =================================================
 
-      const match = await Match.create({
-        user1: userId,
+      const match =
+        await Match.create({
+          user1: userId,
 
-        user2: matchedQueueUser.user,
+          user2:
+            matchedQueueUser.user,
 
-        purpose: "Anonymous Chat",
+          purpose:
+            "Anonymous Chat",
 
-        status: "matched",
+          status: "matched",
 
-        revealUser1: false,
+          revealUser1: false,
 
-        revealUser2: false,
+          revealUser2: false,
 
-        revealed: false,
-      });
+          revealed: false,
+        });
 
       // =================================================
-      // REMOVE PARTNER FROM QUEUE
+      // REMOVE MATCHED USER FROM QUEUE
       // =================================================
 
       await Queue.deleteOne({
@@ -277,7 +281,8 @@ const joinQueue = async (req, res) => {
       // SOCKET.IO
       // =================================================
 
-      const io = req.app.get("io");
+      const io =
+        req.app.get("io");
 
       const user1Socket =
         connectedUsers.get(
@@ -296,11 +301,12 @@ const joinQueue = async (req, res) => {
       const partnerData = {
         anonymous: true,
 
-        purpose: "Anonymous Chat",
+        purpose:
+          "Anonymous Chat",
       };
 
       // =================================================
-      // NOTIFY USER 1
+      // NOTIFY CURRENT USER
       // =================================================
 
       if (user1Socket) {
@@ -319,7 +325,7 @@ const joinQueue = async (req, res) => {
       }
 
       // =================================================
-      // NOTIFY USER 2
+      // NOTIFY PARTNER
       // =================================================
 
       if (user2Socket) {
@@ -340,10 +346,15 @@ const joinQueue = async (req, res) => {
         console.log(
           "Match notification sent to User 2"
         );
+
+      } else {
+        console.log(
+          "Partner is currently offline or socket not registered"
+        );
       }
 
       // =================================================
-      // RESPONSE
+      // RETURN RESPONSE
       // =================================================
 
       return res.status(200).json({
@@ -359,7 +370,7 @@ const joinQueue = async (req, res) => {
     }
 
     // ==================================================
-    // NO PARTNER FOUND
+    // NO MATCH FOUND
     // ==================================================
 
     console.log(
@@ -368,19 +379,17 @@ const joinQueue = async (req, res) => {
 
     // ==================================================
     // ADD USER TO QUEUE
+    //
+    // Queue schema only contains:
+    // - user
+    // - purpose
     // ==================================================
 
     await Queue.create({
       user: userId,
 
-      gender:
-        currentUser.gender || "Other",
-
-      interestedIn:
-        currentUser.interestedIn ||
-        "Everyone",
-
-      purpose: "Anonymous Chat",
+      purpose:
+        "Anonymous Chat",
     });
 
     console.log(
